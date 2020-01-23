@@ -1,18 +1,12 @@
-from anchor_enc import encryption
-from anchor_dec import decryption
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.backends import default_backend
 from Crypto.Util import Counter
 from Crypto.Cipher import AES
-from Crypto import Random
-from Crypto.Cipher import AES
 from Crypto.Hash import HMAC, SHA256
 
 import sys
-import os
-import random
-import time
+from Crypto.Random import get_random_bytes
 
 def xor( var, key):
         key = key[:len(var)]
@@ -20,45 +14,58 @@ def xor( var, key):
         int_key = int.from_bytes(key, sys.byteorder)
         int_enc = int_var ^ int_key
         return int_enc.to_bytes(len(var), sys.byteorder)
-#Key derivation function
-program_start = time.time()
-R1 = random.getrandbits(64)
-salt = os.urandom(64)
-kdf= PBKDF2HMAC(
-    algorithm = hashes.SHA256(),
-    length = 64,
-    salt = salt,
-    iterations = 10000,
-    backend = default_backend()
-)
+    
+def sendCanFrame(anchor_random_number, message, can_id_key, can_id_counter, can_id_initial_vector, gateway_private_key, gateway_initial_vector):
+    # Key derivation function
+    salt = get_random_bytes(64)
+    kdf= PBKDF2HMAC(
+        algorithm = hashes.SHA256(),
+        length = 64,
+        salt = salt,
+        iterations = 10000,
+        backend = default_backend()
+    )
+    kdf_output = kdf.derive(str(anchor_random_number).encode())
+    block_cipher = AES.new(can_id_key, AES.MODE_CTR, counter = can_id_initial_vector)
+    derived_key = block_cipher.encrypt(kdf_output)
+    
+    # Authentication
+    hmac = HMAC.new(kdf_output, digestmod = SHA256)
+    hmac.update(str(message + can_id_counter + str(anchor_random_number)).encode())
+    authentication = hmac.hexdigest().encode()[:8]
+    
+    # Encryption
+    ciphertext = xor(message.encode() + can_id_counter.encode() + authentication, derived_key)
+    
+    message = xor(ciphertext, derived_key) #TODO: understand why ? isnt it already done ?
+    
+    return ciphertext
 
-Cj= Counter.new(128)
-Kb = kdf.derive(str(R1).encode())
-encryption_start = time.time()
-
-#Encryption
-TA = '01'
-dataframe = 'thisisthemessagethisisthemessagethisisthemessagethisis'
-hmac = HMAC.new(Kb, digestmod = SHA256)
-hmac.update(str(dataframe+TA+str(R1)).encode())
-authentication = hmac.hexdigest().encode()[:8]
-print(authentication)
-
-KA = b'thisisjustakeeeythisisjustakeeey'
-block_cipher = AES.new(KA, AES.MODE_CTR, counter = Cj)
-key_derivation = block_cipher.encrypt(Kb)
-
-ciphertext = xor(dataframe.encode()+TA.encode()+authentication, key_derivation)
-
-message = xor(ciphertext, key_derivation)
-message = message.decode()
-
-
-#decryption
-hmac = HMAC.new(Kb, digestmod = SHA256)
-hmac.update(str(message[:54]+message[54:56]+str(R1)).encode())
-
-if  hmac.hexdigest()[:8] == message[56:64]:
-    print(message)
-else:
-    print("Failed authentication, can't retrieve message!")
+def receiveCanFrame(anchor_random_number, can_id_key, can_id_initial_vector):
+    #Key derivation function
+    salt = get_random_bytes(64)
+    kdf= PBKDF2HMAC(
+        algorithm = hashes.SHA256(),
+        length = 64,
+        salt = salt,
+        iterations = 10000,
+        backend = default_backend()
+    )
+    kdf_output = kdf.derive(str(anchor_random_number).encode())
+    block_cipher = AES.new(can_id_key, AES.MODE_CTR, counter = can_id_initial_vector)
+    derived_key = block_cipher.encrypt(kdf_output)
+    
+    #decryption
+    hmac = HMAC.new(kdf_output, digestmod = SHA256)
+    hmac.update(str(message[:54] + message[54:56] + str(anchor_random_number)).encode())
+    
+    if  hmac.hexdigest()[:8] == message[56:64]:
+        print(message)
+    else:
+        print("Failed authentication, can't retrieve message!")
+    
+anchor_random_number = get_random_bytes(64)
+can_id_initial_vector= Counter.new(128)
+can_id_counter = '01'
+message = 'thisisthemessagethisisthemessagethisisthemessagethisis'
+can_id_key = b'thisisjustakeeeythisisjustakeeey'
