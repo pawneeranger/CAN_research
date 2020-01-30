@@ -15,7 +15,7 @@ def xor( var, key):
         int_enc = int_var ^ int_key
         return int_enc.to_bytes(len(var), sys.byteorder)
     
-def sendCanFrame(anchor_random_number, message, can_id_key, can_id_counter, can_id_initial_vector, gateway_private_key, gateway_initial_vector):
+def sendCanFrame(anchor_random_number, message, can_id_key, can_id_counter, can_id_initial_vector):
     # Key derivation function
     salt = get_random_bytes(64)
     kdf= PBKDF2HMAC(
@@ -41,7 +41,7 @@ def sendCanFrame(anchor_random_number, message, can_id_key, can_id_counter, can_
     
     return ciphertext
 
-def receiveCanFrame(anchor_random_number, can_id_key, can_id_initial_vector):
+def receiveCanFrame(anchor_random_number, can_id_key, can_id_initial_vector, ciphertext):
     #Key derivation function
     salt = get_random_bytes(64)
     kdf= PBKDF2HMAC(
@@ -56,16 +56,27 @@ def receiveCanFrame(anchor_random_number, can_id_key, can_id_initial_vector):
     derived_key = block_cipher.encrypt(kdf_output)
     
     #decryption
+    frame = xor(ciphertext, derived_key)
     hmac = HMAC.new(kdf_output, digestmod = SHA256)
-    hmac.update(str(message[:54] + message[54:56] + str(anchor_random_number)).encode())
+    hmac.update(str(frame[:54] + frame[54:56] + str(anchor_random_number)).encode())
     
     if  hmac.hexdigest()[:8] == message[56:64]:
         print(message)
     else:
         print("Failed authentication, can't retrieve message!")
-    
+
+
+
+# Example code to use the functions
+        
+#sendCanFrame(anchor_random_number, message, can_id_key, can_id_counter, can_id_initial_vector)
 anchor_random_number = get_random_bytes(64)
-can_id_initial_vector= Counter.new(128)
-can_id_counter = '01'
-message = 'thisisthemessagethisisthemessagethisisthemessagethisis'
+print("random_number: " + str("".join("\\x%02x" % i for i in anchor_random_number))) # display bytes
+message = b'thisisthemessagethisisthemessagethisisthemessagethisis'
+print("message: " + str("".join("\\x%02x" % i for i in message))) # display bytes
 can_id_key = b'thisisjustakeeeythisisjustakeeey'
+print("can_id_key: " + str("".join("\\x%02x" % i for i in can_id_key))) # display bytes
+can_id_counter = b'01'
+print("can_id_counter: " + str("".join("\\x%02x" % i for i in can_id_counter))) # display bytes
+can_id_initial_vector= Counter.new(128)
+sendCanFrame(anchor_random_number, message, can_id_key, can_id_counter, can_id_initial_vector)
