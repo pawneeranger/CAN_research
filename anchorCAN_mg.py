@@ -4,16 +4,8 @@ from cryptography.hazmat.backends import default_backend
 from Crypto.Util import Counter
 from Crypto.Cipher import AES
 from Crypto.Hash import HMAC, SHA256
-
-import sys
+from Crypto.Util.strxor import strxor as xor
 from Crypto.Random import get_random_bytes
-
-def xor( var, key):
-        key = key[:len(var)]
-        int_var = int.from_bytes(var, sys.byteorder)
-        int_key = int.from_bytes(key, sys.byteorder)
-        int_enc = int_var ^ int_key
-        return int_enc.to_bytes(len(var), sys.byteorder)
     
 def sendCanFrame(anchor_random_number, message, can_id_key, can_id_counter, can_id_initial_vector):
     # Key derivation function
@@ -26,14 +18,13 @@ def sendCanFrame(anchor_random_number, message, can_id_key, can_id_counter, can_
         backend = default_backend()
     )
     kdf_output = kdf.derive(can_id_key)
-    print("kdf_output_sending: " + str("".join("\\x%02x" % i for i in kdf_output)))
     block_cipher = AES.new(can_id_key, AES.MODE_CTR, counter = can_id_initial_vector)
     derived_key = block_cipher.encrypt(kdf_output)
-    print("derived_key_sending: " + str("".join("\\x%02x" % i for i in kdf_output)))
+    print("derived_key_sending: " + str("".join("\\x%02x" % i for i in derived_key)))
     
     # Authentication
     hmac = HMAC.new(kdf_output, digestmod = SHA256)
-    hmac.update(str(message + can_id_counter + anchor_random_number).encode())
+    hmac.update(message + can_id_counter + anchor_random_number)
     authentication = hmac.hexdigest().encode()[:8]
     
     # Encryption
@@ -41,7 +32,7 @@ def sendCanFrame(anchor_random_number, message, can_id_key, can_id_counter, can_
     print("frame_sending: " + str("".join("\\x%02x" % i for i in frame)))
     print("frame_length: "+ str(len(frame)))
     ciphertext = xor(frame, derived_key)
-    
+    print("cipher_text_sending: " + str("".join("\\x%02x" % i for i in ciphertext)))
     return ciphertext
 
 def receiveCanFrame(anchor_random_number, can_id_key, can_id_initial_vector, ciphertext):
@@ -55,10 +46,10 @@ def receiveCanFrame(anchor_random_number, can_id_key, can_id_initial_vector, cip
         backend = default_backend()
     )
     kdf_output = kdf.derive(can_id_key)
-    print("kdf_output_receiving: " + str("".join("\\x%02x" % i for i in kdf_output)))
     block_cipher = AES.new(can_id_key, AES.MODE_CTR, counter = can_id_initial_vector)
     derived_key = block_cipher.encrypt(kdf_output)
-    print("derived_key_receiving: " + str("".join("\\x%02x" % i for i in kdf_output)))
+    print("derived_key_receiving: " + str("".join("\\x%02x" % i for i in derived_key)))
+    print("cipher_text_receiving: " + str("".join("\\x%02x" % i for i in ciphertext)))
     
     #decryption
     frame = xor(derived_key, ciphertext)
@@ -85,6 +76,9 @@ print("can_id_key: " + str("".join("\\x%02x" % i for i in can_id_key))) # displa
 can_id_counter = b'01'
 print("can_id_counter: " + str("".join("\\x%02x" % i for i in can_id_counter))) # display bytes
 can_id_initial_vector= Counter.new(128)
+print("\n\n")
 ciphertext = sendCanFrame(anchor_random_number, message, can_id_key, can_id_counter, can_id_initial_vector)
 
+can_id_initial_vector= Counter.new(128)
+print("\n\n")
 receiveCanFrame(anchor_random_number, can_id_key, can_id_initial_vector, ciphertext)
