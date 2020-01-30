@@ -31,11 +31,11 @@ def sendCanFrame(anchor_random_number, message, can_id_key, can_id_counter, can_
     
     # Authentication
     hmac = HMAC.new(kdf_output, digestmod = SHA256)
-    hmac.update(str(message + can_id_counter + str(anchor_random_number)).encode())
+    hmac.update(str(message + can_id_counter + anchor_random_number).encode())
     authentication = hmac.hexdigest().encode()[:8]
     
     # Encryption
-    ciphertext = xor(message.encode() + can_id_counter.encode() + authentication, derived_key)
+    ciphertext = xor(message + can_id_counter + authentication, derived_key)
     
     message = xor(ciphertext, derived_key) #TODO: understand why ? isnt it already done ?
     
