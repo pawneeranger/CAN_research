@@ -39,7 +39,8 @@ def sendCanFrame(anchor_random_number, message, can_id_key, can_id_counter, can_
     # Encryption
     frame = message + can_id_counter + authentication
     print("frame_sending: " + str("".join("\\x%02x" % i for i in frame)))
-    ciphertext = xor(message + can_id_counter + authentication, derived_key)
+    print("frame_length: "+ str(len(frame)))
+    ciphertext = xor(frame, derived_key)
     
     return ciphertext
 
@@ -62,14 +63,14 @@ def receiveCanFrame(anchor_random_number, can_id_key, can_id_initial_vector, cip
     #decryption
     frame = xor(derived_key, ciphertext)
     print("frame_receiving: " + str("".join("\\x%02x" % i for i in frame)))
+    print("frame_length: "+ str(len(frame)))
     hmac = HMAC.new(kdf_output, digestmod = SHA256)
-    hmac.update(str(frame[:54] + frame[54:56] + str(anchor_random_number)).encode())
+    hmac.update(frame[:54] + frame[54:56] + anchor_random_number)
     
     if  hmac.hexdigest()[:8] == message[56:64]:
         print(message)
     else:
         print("Failed authentication, can't retrieve message!")
-
 
 
 # Example code to use the functions
