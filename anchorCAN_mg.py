@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.backends import default_backend
@@ -7,13 +9,19 @@ from Crypto.Hash import HMAC, SHA256
 from Crypto.Util.strxor import strxor as xor
 from Crypto.Random import get_random_bytes
 
-import can
-
-# TODO
-#def sendAnchorFrames(frequency):
-#    
+import can  
 
 def generateAnchorFrame(anchor_random_number, gateway_private_key, gateway_initial_vector):
+    """Return an anchor frame (an encrypted random number ready to be securely sent to ECUs)
+    
+    Parameters
+    
+    - **anchor_random_number** *byte string* : random number to send to the ECUs
+    
+    - **gateway_private_key** *byte string* : private key of the gateway ECU
+    
+    - **initial vector** *byte string* : initial vector of the gateway ECU
+    """
     # Key derivation function
     salt = gateway_initial_vector
     kdf= PBKDF2HMAC(
@@ -40,6 +48,16 @@ def generateAnchorFrame(anchor_random_number, gateway_private_key, gateway_initi
     return ciphertext
 
 def verifyAnchorFrame(gateway_private_key, gateway_initial_vector, ciphertext):
+    """Decrypt and verify an anchor frame
+    
+    Parameters
+    
+    - **gateway_private_key** *byte string* : private key of the gateway ECU
+    
+    - **initial vector** *byte string* : initial vector of the gateway ECU
+    
+    - **ciphertext** *byte string* : encrypted anchor frame
+    """
     # Key derivation function
     salt = gateway_initial_vector
     kdf= PBKDF2HMAC(
@@ -69,12 +87,31 @@ def verifyAnchorFrame(gateway_private_key, gateway_initial_vector, ciphertext):
     else:
         print("\nFailed authentication, can't retrieve anchor random number!")
 
+# TODO
+#def sendAnchorFrames(frequency):
+#  
+
 # TODO: check if already implemented by CAN library
 #def getCanID(can_frame):
 #    can_id = can_frame[1:11]
 #    return can_id
 
 def generateAnchorCanData(current_anchor_random_number, message, can_id_key, can_id_counter, nonce):
+    """Return an encrypted CAN data frame
+    
+    Parameters
+    
+    - **current_anchor_random_number** *byte string* : last anchor random number received by the ECU
+    
+    - **message** *byte string* : data to be sent securely
+    
+    - **can_id_key** *byte string* : private key corresponding to the CAN ID used for this communication
+    
+    - **can_id_counter** *byte string* : local counter corresponding to the CAN ID used for this communication
+    
+    - **nonce** *byte string* : initial vector or latest CAN frame for the CAN ID used for this communication
+    """
+    # TODO: understand why can_id_counter is only 2 bits while documentation recommends 4bits
     # Key derivation function
     salt = current_anchor_random_number
     kdf= PBKDF2HMAC(
@@ -101,6 +138,18 @@ def generateAnchorCanData(current_anchor_random_number, message, can_id_key, can
     return ciphertext
 
 def verifyAnchorCanData(current_anchor_random_number, can_id_key, nonce, ciphertext):
+    """Decrypt and verify a CAN data frame
+    
+    Parameters
+    
+    - **current_anchor_random_number** *byte string* : last anchor random number received by the ECU
+    
+    - **can_id_key** *byte string* : private key corresponding to the CAN ID used for this communication
+    
+    - **nonce** *byte string* : initial vector or latest CAN frame for the CAN ID used for this communication
+    
+    - **ciphertext** *byte string* : encrypted CAN data frame
+    """
     # Key derivation function
     salt = current_anchor_random_number
     kdf= PBKDF2HMAC(
