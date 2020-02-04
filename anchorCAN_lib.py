@@ -6,8 +6,6 @@ AnchorCAN is an Anchor-based Secure CAN Communications System.
 This code is an attempt at implementing in Python the proposal of the
 AnchorCAN_ research paper.
 
-.. _AnchorCAN: https://ieeexplore.ieee.org/document/8625173/
-
 An example of possible usage is the following:
 
     >>> gateway_private_key = b'thisisjustakeeeythisisjustakeeey'
@@ -259,27 +257,29 @@ class ECU:
 #        
 #    def send():
 #        ezfz
-        
-from Crypto.Random import get_random_bytes
-    
-gateway_private_key = b'thisisjustakeeeythisisjustakeeey'
-gateway_initial_vector = b'1'
-gateway_can_id = b'01'
 
-gateway1 = GatewayECU(gateway_private_key, gateway_initial_vector, gateway_can_id)
-random = get_random_bytes(56)
-anchor_frame = gateway1.generateAnchorFrame(random)
 
-ecu1 = ECU(gateway_private_key, gateway_initial_vector, gateway_can_id)
-
-random_number = ecu1.readAnchorFrame(anchor_frame)
-ecu1.setCurrentAnchorRandomNumber(random_number)
-
-can_id = b'02'
-can_id_private_key = b'thisisjustakeeeythisisjustakeeey'
-can_id_counter = b'01'
-can_id_initial_vector = b'1'
-ecu1.addCanIDConfig(can_id, can_id_private_key, can_id_counter, can_id_initial_vector)
-
-message = message = b'thisisthemessagethisisthemessagethisisthemessagethisis'
-can_data_frame = ecu1.generateAnchorCanData(message, can_id)
+## for testing only        
+#from Crypto.Random import get_random_bytes
+#    
+#gateway_private_key = b'thisisjustakeeeythisisjustakeeey'
+#gateway_initial_vector = b'1'
+#gateway_can_id = b'01'
+#
+#gateway1 = GatewayECU(gateway_private_key, gateway_initial_vector, gateway_can_id)
+#random = get_random_bytes(56)
+#anchor_frame = gateway1.generateAnchorFrame(random)
+#
+#ecu1 = ECU(gateway_private_key, gateway_initial_vector, gateway_can_id)
+#
+#random_number = ecu1.readAnchorFrame(anchor_frame)
+#ecu1.setCurrentAnchorRandomNumber(random_number)
+#
+#can_id = b'02'
+#can_id_private_key = b'thisisjustakeeeythisisjustakeeey'
+#can_id_counter = b'01'
+#can_id_initial_vector = b'1'
+#ecu1.addCanIDConfig(can_id, can_id_private_key, can_id_counter, can_id_initial_vector)
+#
+#message = message = b'thisisthemessagethisisthemessagethisisthemessagethisis'
+#can_data_frame = ecu1.generateAnchorCanData(message, can_id)
